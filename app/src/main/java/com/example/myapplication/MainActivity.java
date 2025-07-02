@@ -49,13 +49,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean isLoggedIn() {
-        try {
-            SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
-            return prefs.getBoolean("is_logged_in", false);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
+        SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
+        return prefs.getInt("login_user_id", -1) != -1;
     }
 
     private void startLoginActivity() {

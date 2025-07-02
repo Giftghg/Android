@@ -13,22 +13,34 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.myapplication.ProductDetailActivity;
 import com.example.myapplication.R;
 import com.example.myapplication.model.Product;
+import com.example.myapplication.viewmodel.UserViewModel;
+import com.example.myapplication.model.User;
+import android.os.Handler;
+import android.os.Looper;
+import java.util.HashMap;
+import java.util.Map;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+
 public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductViewHolder> {
     private List<Product> products;
     private OnItemClickListener listener;
+    private UserViewModel userViewModel;
+    private Map<Integer, String> sellerNameCache = new HashMap<>();
 
     public interface OnItemClickListener {
         void onItemClick(Product product);
     }
 
-    public ProductAdapter(List<Product> products) {
+    public ProductAdapter(List<Product> products, UserViewModel userViewModel) {
         this.products = products;
+        this.userViewModel = userViewModel;
     }
 
     @NonNull
@@ -80,6 +92,9 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
                 // 跳转到商品详情页面
                 Product product = products.get(position);
                 Intent intent = new Intent(v.getContext(), ProductDetailActivity.class);
+                intent.putExtra("product_id", product.getId());
+                intent.putExtra("seller_id", product.getSellerId());
+                intent.putExtra("status", product.getStatus());
                 intent.putExtra("title", product.getTitle());
                 intent.putExtra("description", product.getDescription());
                 intent.putExtra("price", product.getPrice());
@@ -88,6 +103,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
                 intent.putExtra("location", product.getLocation() != null ? product.getLocation() : "北京市朝阳区");
                 intent.putExtra("seller", product.getSellerName() != null ? product.getSellerName() : "卖家");
                 intent.putExtra("original_price", product.getOriginalPrice());
+                intent.putExtra("images", product.getImages());
                 v.getContext().startActivity(intent);
             });
         }
@@ -96,10 +112,28 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             tvTitle.setText(product.getTitle());
             tvPrice.setText("¥" + product.getPrice());
             tvLocation.setText(product.getLocation() != null ? product.getLocation() : "北京市朝阳区");
-            tvSeller.setText(product.getSellerName() != null ? product.getSellerName() : "卖家");
-            
-            // 设置默认图片
-            ivProduct.setImageResource(R.drawable.ic_launcher_foreground);
+            tvSeller.setText("卖家：" + (product.getSellerName() != null ? product.getSellerName() : "用户"));
+            // 显示商品图片（取images字段的第一张）
+            String images = product.getImages();
+            if (images != null && !images.isEmpty()) {
+                try {
+                    JSONArray arr = new JSONArray(images);
+                    if (arr.length() > 0) {
+                        String uriStr = arr.getString(0);
+                        if (uriStr != null && !uriStr.isEmpty()) {
+                            ivProduct.setImageURI(android.net.Uri.parse(uriStr));
+                        } else {
+                            ivProduct.setImageResource(R.drawable.ic_launcher_foreground);
+                        }
+                    } else {
+                        ivProduct.setImageResource(R.drawable.ic_launcher_foreground);
+                    }
+                } catch (Exception e) {
+                    ivProduct.setImageResource(R.drawable.ic_launcher_foreground);
+                }
+            } else {
+                ivProduct.setImageResource(R.drawable.ic_launcher_foreground);
+            }
         }
 
         private String formatTime(String timeStamp) {

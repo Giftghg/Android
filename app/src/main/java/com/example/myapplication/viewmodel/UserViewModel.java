@@ -67,4 +67,8 @@ public class UserViewModel extends AndroidViewModel {
         // 这里应该使用加密的密码验证，简化处理
         return user != null && password.equals("123456");
     }
+
+    public User getUserByIdSync(int id) {
+        return repository.getUserByIdSync(id);
+    }
 } 

@@ -57,6 +57,10 @@ public class UserRepository {
         return userDao.searchUsers(keyword);
     }
 
+    public User getUserByIdSync(int id) {
+        return userDao.getUserByIdSync(id);
+    }
+
     private static class InsertUserAsyncTask extends AsyncTask<User, Void, Void> {
         private UserDao userDao;
 

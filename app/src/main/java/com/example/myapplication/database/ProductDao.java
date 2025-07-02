@@ -54,4 +54,10 @@ public interface ProductDao {
 
     @Query("UPDATE products SET favoriteCount = favoriteCount - 1 WHERE id = :productId")
     void decrementFavoriteCount(int productId);
+
+    @Query("SELECT * FROM products WHERE buyerId = :buyerId ORDER BY createTime DESC")
+    LiveData<List<Product>> getProductsByBuyer(int buyerId);
+
+    @Query("UPDATE products SET status = :status, buyerId = :buyerId WHERE id = :productId")
+    void updateProductStatusAndBuyer(int productId, String status, int buyerId);
 } 

@@ -11,6 +11,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -18,6 +19,7 @@ import com.example.myapplication.R;
 import com.example.myapplication.adapter.ProductAdapter;
 import com.example.myapplication.model.Product;
 import com.example.myapplication.util.DataGenerator;
+import com.example.myapplication.viewmodel.UserViewModel;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -49,7 +51,8 @@ public class CategoryFragment extends Fragment {
     }
 
     private void setupRecyclerView() {
-        adapter = new ProductAdapter(DataGenerator.generateSampleProducts());
+        UserViewModel userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
+        adapter = new ProductAdapter(new java.util.ArrayList<>(), userViewModel);
         recyclerView.setLayoutManager(new GridLayoutManager(getContext(), 2));
         recyclerView.setAdapter(adapter);
         
@@ -101,7 +104,7 @@ public class CategoryFragment extends Fragment {
     }
 
     private void loadProductsByCategory(String category) {
-        List<Product> allProducts = DataGenerator.generateSampleProducts();
+        List<Product> allProducts = new java.util.ArrayList<>();
         List<Product> filteredProducts;
         
         if ("全部".equals(category)) {
@@ -111,7 +114,6 @@ public class CategoryFragment extends Fragment {
                     .filter(product -> category.equals(product.getCategory()))
                     .collect(Collectors.toList());
         }
-        
         adapter.updateProducts(filteredProducts);
     }
 } 

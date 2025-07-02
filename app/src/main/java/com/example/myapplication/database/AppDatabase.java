@@ -10,7 +10,7 @@ import com.example.myapplication.model.User;
 import com.example.myapplication.model.Product;
 import com.example.myapplication.model.Message;
 
-@Database(entities = {User.class, Product.class, Message.class}, version = 1, exportSchema = false)
+@Database(entities = {User.class, Product.class, Message.class}, version = 4, exportSchema = false)
 public abstract class AppDatabase extends RoomDatabase {
     private static AppDatabase instance;
 

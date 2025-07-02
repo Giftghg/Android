@@ -16,6 +16,7 @@ public class User {
     private double rating;
     private int itemCount;
     private String createTime;
+    private String password;
 
     public User() {}
 
@@ -56,4 +57,7 @@ public class User {
 
     public String getCreateTime() { return createTime; }
     public void setCreateTime(String createTime) { this.createTime = createTime; }
+
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 } 

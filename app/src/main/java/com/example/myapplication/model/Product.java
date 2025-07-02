@@ -23,6 +23,8 @@ public class Product {
     private int favoriteCount;
     private String createTime;
     private String updateTime;
+    private int buyerId;
+    private int quantity;
 
     public Product() {}
 
@@ -88,4 +90,10 @@ public class Product {
 
     public String getUpdateTime() { return updateTime; }
     public void setUpdateTime(String updateTime) { this.updateTime = updateTime; }
+
+    public int getBuyerId() { return buyerId; }
+    public void setBuyerId(int buyerId) { this.buyerId = buyerId; }
+
+    public int getQuantity() { return quantity; }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
 } 

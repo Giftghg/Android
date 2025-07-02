@@ -82,4 +82,12 @@ public class ProductViewModel extends AndroidViewModel {
         product.setSellerName(sellerName);
         insert(product);
     }
+
+    public void updateProductStatusAndBuyer(int productId, String status, int buyerId) {
+        repository.updateProductStatusAndBuyer(productId, status, buyerId);
+    }
+
+    public LiveData<List<Product>> getProductsByBuyer(int buyerId) {
+        return repository.getProductsByBuyer(buyerId);
+    }
 } 

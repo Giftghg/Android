@@ -12,6 +12,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -21,6 +22,7 @@ import com.example.myapplication.adapter.ProductAdapter;
 import com.example.myapplication.model.Product;
 import com.example.myapplication.util.DataGenerator;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.example.myapplication.viewmodel.UserViewModel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,7 +59,8 @@ public class HomeFragment extends Fragment {
     }
 
     private void setupRecyclerView() {
-        adapter = new ProductAdapter(allProducts);
+        UserViewModel userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
+        adapter = new ProductAdapter(allProducts, userViewModel);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         recyclerView.setAdapter(adapter);
     }
@@ -85,13 +88,8 @@ public class HomeFragment extends Fragment {
     private void loadProducts() {
         try {
             allProducts.clear();
-            
-            // 加载示例数据
-            allProducts.addAll(DataGenerator.generateSampleProducts());
-            
-            // 加载用户发布的商品
+            // 只加载用户发布的商品，不加载测试数据
             loadUserProducts();
-            
             adapter.updateProducts(allProducts);
         } catch (Exception e) {
             Toast.makeText(getContext(), "加载商品失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();

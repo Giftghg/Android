@@ -15,17 +15,24 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.example.myapplication.LoginActivity;
 import com.example.myapplication.R;
 import com.example.myapplication.adapter.ProductAdapter;
+import com.example.myapplication.model.User;
+import com.example.myapplication.viewmodel.UserViewModel;
 import com.example.myapplication.util.DataGenerator;
+
+import java.util.List;
 
 public class ProfileFragment extends Fragment {
     private TextView tvUsername;
     private Button btnLogout, btnMyProducts, btnSettings;
     private RecyclerView rvMyProducts;
     private ProductAdapter adapter;
+    private UserViewModel userViewModel;
+    private int loginUserId = -1;
 
     @Nullable
     @Override
@@ -35,7 +42,19 @@ public class ProfileFragment extends Fragment {
         initViews(view);
         setupRecyclerView();
         setupListeners();
+        userViewModel = new ViewModelProvider(this).get(UserViewModel.class);
+        loginUserId = getLoginUserId();
         loadUserInfo();
+        
+        // 调试：打印所有用户id和用户名
+        new Thread(() -> {
+            List<User> allUsers = userViewModel.getAllUsers().getValue();
+            if (allUsers != null) {
+                for (User user : allUsers) {
+                    android.util.Log.d("UserDebug", "id=" + user.getId() + ", username=" + user.getUsername());
+                }
+            }
+        }).start();
         
         return view;
     }
@@ -49,7 +68,8 @@ public class ProfileFragment extends Fragment {
     }
 
     private void setupRecyclerView() {
-        adapter = new ProductAdapter(DataGenerator.generateSampleProducts());
+        userViewModel = new ViewModelProvider(this).get(UserViewModel.class);
+        adapter = new ProductAdapter(new java.util.ArrayList<>(), userViewModel);
         rvMyProducts.setLayoutManager(new LinearLayoutManager(getContext()));
         rvMyProducts.setAdapter(adapter);
         
@@ -74,19 +94,32 @@ public class ProfileFragment extends Fragment {
     }
 
     private void loadUserInfo() {
+        if (loginUserId == -1) {
+            tvUsername.setText("未登录");
+            return;
+        }
+        new Thread(() -> {
+            User user = userViewModel.getUserByIdSync(loginUserId);
+            getActivity().runOnUiThread(() -> {
+                if (user != null) {
+                    tvUsername.setText(user.getUsername());
+                } else {
+                    tvUsername.setText("未知用户");
+                }
+            });
+        }).start();
+    }
+
+    private int getLoginUserId() {
         SharedPreferences prefs = getActivity().getSharedPreferences("app_prefs", getActivity().MODE_PRIVATE);
-        String username = prefs.getString("username", "用户");
-        tvUsername.setText(username);
+        return prefs.getInt("login_user_id", -1);
     }
 
     private void logout() {
-        // 清除登录状态
         SharedPreferences prefs = getActivity().getSharedPreferences("app_prefs", getActivity().MODE_PRIVATE);
         SharedPreferences.Editor editor = prefs.edit();
-        editor.clear();
+        editor.remove("login_user_id");
         editor.apply();
-
-        // 跳转到登录页面
         Intent intent = new Intent(getActivity(), LoginActivity.class);
         startActivity(intent);
         getActivity().finish();

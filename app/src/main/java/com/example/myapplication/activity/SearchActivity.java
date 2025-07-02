@@ -7,6 +7,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -14,6 +15,7 @@ import com.example.myapplication.R;
 import com.example.myapplication.adapter.ProductAdapter;
 import com.example.myapplication.model.Product;
 import com.example.myapplication.util.DataGenerator;
+import com.example.myapplication.viewmodel.UserViewModel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +42,15 @@ public class SearchActivity extends AppCompatActivity {
         setupRecyclerView();
         setupSearchView();
         loadAllProducts();
+        // 自动获取焦点并弹出软键盘
+        searchView.setIconified(false);
+        searchView.requestFocusFromTouch();
+        searchView.post(() -> {
+            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.showSoftInput(searchView.findFocus(), android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+            }
+        });
     }
 
     private void initViews() {
@@ -48,7 +59,8 @@ public class SearchActivity extends AppCompatActivity {
     }
 
     private void setupRecyclerView() {
-        adapter = new ProductAdapter(allProducts);
+        UserViewModel userViewModel = new ViewModelProvider(this).get(UserViewModel.class);
+        adapter = new ProductAdapter(allProducts, userViewModel);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
 
@@ -82,13 +94,8 @@ public class SearchActivity extends AppCompatActivity {
     private void loadAllProducts() {
         try {
             allProducts.clear();
-            
-            // 加载示例数据
-            allProducts.addAll(DataGenerator.generateSampleProducts());
-            
-            // 加载用户发布的商品
+            // 只加载用户发布的商品，不加载测试数据
             loadUserProducts();
-            
             adapter.updateProducts(allProducts);
         } catch (Exception e) {
             Toast.makeText(this, "加载商品失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();

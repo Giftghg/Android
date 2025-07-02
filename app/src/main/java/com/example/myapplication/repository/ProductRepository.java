@@ -77,6 +77,14 @@ public class ProductRepository {
         new DecrementFavoriteCountAsyncTask(productDao).execute(productId);
     }
 
+    public void updateProductStatusAndBuyer(int productId, String status, int buyerId) {
+        new UpdateProductStatusAndBuyerAsyncTask(productDao, status, buyerId).execute(productId);
+    }
+
+    public LiveData<List<Product>> getProductsByBuyer(int buyerId) {
+        return productDao.getProductsByBuyer(buyerId);
+    }
+
     private static class InsertProductAsyncTask extends AsyncTask<Product, Void, Void> {
         private ProductDao productDao;
 
@@ -157,6 +165,22 @@ public class ProductRepository {
         @Override
         protected Void doInBackground(Integer... productIds) {
             productDao.decrementFavoriteCount(productIds[0]);
+            return null;
+        }
+    }
+
+    private static class UpdateProductStatusAndBuyerAsyncTask extends AsyncTask<Integer, Void, Void> {
+        private ProductDao productDao;
+        private String status;
+        private int buyerId;
+        UpdateProductStatusAndBuyerAsyncTask(ProductDao productDao, String status, int buyerId) {
+            this.productDao = productDao;
+            this.status = status;
+            this.buyerId = buyerId;
+        }
+        @Override
+        protected Void doInBackground(Integer... productIds) {
+            productDao.updateProductStatusAndBuyer(productIds[0], status, buyerId);
             return null;
         }
     }
