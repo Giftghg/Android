@@ -77,13 +77,29 @@ public class ApiClient {
             try {
                 String response = makeRequest("GET", "/products", null, null);
                 JSONObject jsonResponse = new JSONObject(response);
-                JSONArray productsArray = jsonResponse.getJSONArray("products");
                 
-                List<JSONObject> products = new ArrayList<>();
-                for (int i = 0; i < productsArray.length(); i++) {
-                    products.add(productsArray.getJSONObject(i));
+                // 检查是否有分页结构
+                if (jsonResponse.has("products")) {
+                    JSONArray productsArray = jsonResponse.getJSONArray("products");
+                    List<JSONObject> products = new ArrayList<>();
+                    for (int i = 0; i < productsArray.length(); i++) {
+                        products.add(productsArray.getJSONObject(i));
+                    }
+                    callback.onSuccess(products);
+                } else {
+                    // 如果没有分页结构，直接解析为商品数组
+                    List<JSONObject> products = new ArrayList<>();
+                    try {
+                        JSONArray productsArray = new JSONArray(response);
+                        for (int i = 0; i < productsArray.length(); i++) {
+                            products.add(productsArray.getJSONObject(i));
+                        }
+                    } catch (Exception e) {
+                        // 如果不是JSONArray，则作为单个商品对象处理
+                        products.add(jsonResponse);
+                    }
+                    callback.onSuccess(products);
                 }
-                callback.onSuccess(products);
             } catch (Exception e) {
                 Log.e(TAG, "获取商品列表失败", e);
                 callback.onError("获取商品列表失败: " + e.getMessage());
@@ -147,13 +163,29 @@ public class ApiClient {
             try {
                 String response = makeRequest("GET", "/user/products", null, token);
                 JSONObject jsonResponse = new JSONObject(response);
-                JSONArray productsArray = jsonResponse.getJSONArray("products");
                 
-                List<JSONObject> products = new ArrayList<>();
-                for (int i = 0; i < productsArray.length(); i++) {
-                    products.add(productsArray.getJSONObject(i));
+                // 检查是否有分页结构
+                if (jsonResponse.has("products")) {
+                    JSONArray productsArray = jsonResponse.getJSONArray("products");
+                    List<JSONObject> products = new ArrayList<>();
+                    for (int i = 0; i < productsArray.length(); i++) {
+                        products.add(productsArray.getJSONObject(i));
+                    }
+                    callback.onSuccess(products);
+                } else {
+                    // 如果没有分页结构，直接解析为商品数组
+                    List<JSONObject> products = new ArrayList<>();
+                    try {
+                        JSONArray productsArray = new JSONArray(response);
+                        for (int i = 0; i < productsArray.length(); i++) {
+                            products.add(productsArray.getJSONObject(i));
+                        }
+                    } catch (Exception e) {
+                        // 如果不是JSONArray，则作为单个商品对象处理
+                        products.add(jsonResponse);
+                    }
+                    callback.onSuccess(products);
                 }
-                callback.onSuccess(products);
             } catch (Exception e) {
                 Log.e(TAG, "获取用户商品失败", e);
                 callback.onError("获取用户商品失败: " + e.getMessage());
@@ -195,6 +227,45 @@ public class ApiClient {
             } catch (Exception e) {
                 Log.e(TAG, "获取成色失败", e);
                 callback.onError("获取成色失败: " + e.getMessage());
+            }
+        });
+    }
+
+    public static void getProductsByCategory(String category, ApiCallback<List<JSONObject>> callback) {
+        executor.execute(() -> {
+            try {
+                String endpoint = "/products";
+                if (!"全部".equals(category)) {
+                    endpoint += "?category=" + java.net.URLEncoder.encode(category, "UTF-8");
+                }
+                String response = makeRequest("GET", endpoint, null, null);
+                JSONObject jsonResponse = new JSONObject(response);
+                
+                // 检查是否有分页结构
+                if (jsonResponse.has("products")) {
+                    JSONArray productsArray = jsonResponse.getJSONArray("products");
+                    List<JSONObject> products = new ArrayList<>();
+                    for (int i = 0; i < productsArray.length(); i++) {
+                        products.add(productsArray.getJSONObject(i));
+                    }
+                    callback.onSuccess(products);
+                } else {
+                    // 如果没有分页结构，直接解析为商品数组
+                    List<JSONObject> products = new ArrayList<>();
+                    try {
+                        JSONArray productsArray = new JSONArray(response);
+                        for (int i = 0; i < productsArray.length(); i++) {
+                            products.add(productsArray.getJSONObject(i));
+                        }
+                    } catch (Exception e) {
+                        // 如果不是JSONArray，则作为单个商品对象处理
+                        products.add(jsonResponse);
+                    }
+                    callback.onSuccess(products);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "获取分类商品失败", e);
+                callback.onError("获取分类商品失败: " + e.getMessage());
             }
         });
     }

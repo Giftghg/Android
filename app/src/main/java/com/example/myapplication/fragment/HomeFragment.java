@@ -36,6 +36,8 @@ public class HomeFragment extends Fragment {
     private TextView searchHint;
     private FloatingActionButton fabFilter;
     private List<Product> allProducts = new ArrayList<>();
+    private String selectedCategory = "全部";
+    private String selectedCondition = "全部";
 
     @Nullable
     @Override
@@ -79,13 +81,91 @@ public class HomeFragment extends Fragment {
 
         if (fabFilter != null) {
             fabFilter.setOnClickListener(v -> {
-                Toast.makeText(getContext(), "筛选功能开发中...", Toast.LENGTH_SHORT).show();
+                showFilterDialog();
             });
         }
 
         adapter.setOnItemClickListener(product -> {
-            Toast.makeText(getContext(), "点击了: " + product.getTitle(), Toast.LENGTH_SHORT).show();
+            // 跳转到商品详情页面
+            Intent intent = new Intent(getActivity(), com.example.myapplication.ProductDetailActivity.class);
+            intent.putExtra("product_id", product.getId());
+            startActivity(intent);
         });
+    }
+
+    private void showFilterDialog() {
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(getContext());
+        builder.setTitle("筛选商品");
+
+        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_filter, null);
+        builder.setView(dialogView);
+
+        // 获取筛选控件
+        TextView tvCategory = dialogView.findViewById(R.id.tv_category);
+        TextView tvCondition = dialogView.findViewById(R.id.tv_condition);
+
+        // 设置当前选中的值
+        tvCategory.setText(selectedCategory);
+        tvCondition.setText(selectedCondition);
+
+        // 分类选择
+        tvCategory.setOnClickListener(v -> {
+            String[] categories = {"全部", "数码产品", "服装鞋帽", "图书音像", "家居用品", "运动户外", "美妆护肤", "其他"};
+            new android.app.AlertDialog.Builder(getContext())
+                .setTitle("选择分类")
+                .setItems(categories, (dialog, which) -> {
+                    selectedCategory = categories[which];
+                    tvCategory.setText(selectedCategory);
+                })
+                .show();
+        });
+
+        // 成色选择
+        tvCondition.setOnClickListener(v -> {
+            String[] conditions = {"全部", "全新", "九成新", "八成新", "七成新", "六成新", "五成新"};
+            new android.app.AlertDialog.Builder(getContext())
+                .setTitle("选择成色")
+                .setItems(conditions, (dialog, which) -> {
+                    selectedCondition = conditions[which];
+                    tvCondition.setText(selectedCondition);
+                })
+                .show();
+        });
+
+        builder.setPositiveButton("确定", (dialog, which) -> {
+            applyFilter();
+        });
+
+        builder.setNegativeButton("取消", (dialog, which) -> {
+            dialog.dismiss();
+        });
+
+        builder.show();
+    }
+
+    private void applyFilter() {
+        // 根据筛选条件过滤商品
+        List<Product> filteredProducts = allProducts.stream()
+            .filter(product -> {
+                boolean categoryMatch = "全部".equals(selectedCategory) || 
+                                     selectedCategory.equals(product.getCategory());
+                boolean conditionMatch = "全部".equals(selectedCondition) || 
+                                      selectedCondition.equals(product.getCondition());
+                return categoryMatch && conditionMatch;
+            })
+            .collect(java.util.stream.Collectors.toList());
+        
+        adapter.updateProducts(filteredProducts);
+        
+        String filterText = "筛选结果: " + filteredProducts.size() + " 件商品";
+        if (!"全部".equals(selectedCategory)) {
+            filterText += " (分类: " + selectedCategory + ")";
+        }
+        if (!"全部".equals(selectedCondition)) {
+            filterText += " (成色: " + selectedCondition + ")";
+        }
+        
+        Toast.makeText(getContext(), filterText, Toast.LENGTH_SHORT).show();
     }
 
     private void loadProducts() {
@@ -119,14 +199,20 @@ public class HomeFragment extends Fragment {
                                 product.setSellerName(productJson.getString("seller_name"));
                                 product.setCondition(productJson.getString("condition"));
                                 product.setCreateTime(productJson.getString("created_at"));
+                                product.setLocation("北京市朝阳区"); // 默认位置
+                                
                                 if (productJson.has("image_url") && !productJson.isNull("image_url")) {
-                                    product.setImages(productJson.getString("image_url"));
+                                    String imageUrl = productJson.getString("image_url");
+                                    if (!imageUrl.isEmpty()) {
+                                        product.setImages("[" + imageUrl + "]");
+                                    }
                                 }
                                 allProducts.add(product);
                             }
                             adapter.updateProducts(allProducts);
                         } catch (Exception e) {
                             Toast.makeText(getContext(), "解析商品数据失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                            android.util.Log.e("HomeFragment", "解析商品数据失败", e);
                         }
                     });
                 }

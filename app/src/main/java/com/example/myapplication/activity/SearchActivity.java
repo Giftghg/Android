@@ -1,6 +1,6 @@
 package com.example.myapplication.activity;
 
-import android.content.SharedPreferences;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.widget.Toast;
@@ -14,8 +14,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.myapplication.R;
 import com.example.myapplication.adapter.ProductAdapter;
 import com.example.myapplication.model.Product;
-import com.example.myapplication.util.DataGenerator;
+import com.example.myapplication.util.ApiClient;
 import com.example.myapplication.viewmodel.UserViewModel;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -65,7 +68,10 @@ public class SearchActivity extends AppCompatActivity {
         recyclerView.setAdapter(adapter);
 
         adapter.setOnItemClickListener(product -> {
-            Toast.makeText(this, "点击了: " + product.getTitle(), Toast.LENGTH_SHORT).show();
+            // 跳转到商品详情页面
+            Intent intent = new Intent(this, com.example.myapplication.ProductDetailActivity.class);
+            intent.putExtra("product_id", product.getId());
+            startActivity(intent);
         });
     }
 
@@ -94,43 +100,64 @@ public class SearchActivity extends AppCompatActivity {
     private void loadAllProducts() {
         try {
             allProducts.clear();
-            // 只加载用户发布的商品，不加载测试数据
-            loadUserProducts();
-            adapter.updateProducts(allProducts);
+            // 从API获取所有商品
+            ApiClient.getProducts(new ApiClient.ApiCallback<List<JSONObject>>() {
+                @Override
+                public void onSuccess(List<JSONObject> productsJson) {
+                    runOnUiThread(() -> {
+                        try {
+                            for (JSONObject productJson : productsJson) {
+                                Product product = parseProductFromJson(productJson);
+                                allProducts.add(product);
+                            }
+                            adapter.updateProducts(allProducts);
+                        } catch (Exception e) {
+                            Toast.makeText(SearchActivity.this, "解析商品数据失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                            android.util.Log.e("SearchActivity", "解析商品数据失败", e);
+                        }
+                    });
+                }
+
+                @Override
+                public void onError(String error) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(SearchActivity.this, "加载商品失败: " + error, Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
         } catch (Exception e) {
             Toast.makeText(this, "加载商品失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
             e.printStackTrace();
         }
     }
 
-    private void loadUserProducts() {
-        try {
-            SharedPreferences prefs = getSharedPreferences("products", MODE_PRIVATE);
-            int productCount = prefs.getInt("product_count", 0);
-            
-            for (int i = 1; i <= productCount; i++) {
-                String title = prefs.getString("product_" + i + "_title", "");
-                String description = prefs.getString("product_" + i + "_description", "");
-                float price = prefs.getFloat("product_" + i + "_price", 0);
-                String category = prefs.getString("product_" + i + "_category", "");
-                String location = prefs.getString("product_" + i + "_location", "");
-                String seller = prefs.getString("product_" + i + "_seller", "");
-                String condition = prefs.getString("product_" + i + "_condition", "");
-                long time = prefs.getLong("product_" + i + "_time", 0);
-                
-                if (!title.isEmpty()) {
-                    Product product = new Product(title, description, price, category, 1);
-                    product.setLocation(location);
-                    product.setSellerName(seller);
-                    product.setCondition(condition);
-                    product.setCreateTime(String.valueOf(time));
-                    allProducts.add(0, product);
-                }
-            }
-        } catch (Exception e) {
-            Toast.makeText(this, "加载用户商品失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            e.printStackTrace();
+    private Product parseProductFromJson(JSONObject productJson) throws Exception {
+        int id = productJson.getInt("id");
+        String title = productJson.getString("title");
+        String description = productJson.getString("description");
+        double price = productJson.getDouble("price");
+        String category = productJson.getString("category");
+        String condition = productJson.getString("condition");
+        int sellerId = productJson.getInt("seller_id");
+        String sellerName = productJson.getString("seller_name");
+        String status = productJson.optString("status", "");
+        String imageUrl = productJson.optString("image_url", "");
+        String createTime = productJson.getString("created_at");
+
+        Product product = new Product(title, description, (float) price, category, sellerId);
+        product.setId(id);
+        product.setCondition(condition);
+        product.setSellerName(sellerName);
+        product.setStatus(status);
+        product.setCreateTime(createTime);
+        product.setLocation("北京市朝阳区"); // 默认位置
+
+        // 处理图片
+        if (!imageUrl.isEmpty()) {
+            product.setImages("[" + imageUrl + "]");
         }
+
+        return product;
     }
 
     private void searchProducts(String keyword) {
@@ -138,7 +165,8 @@ public class SearchActivity extends AppCompatActivity {
             List<Product> filteredProducts = allProducts.stream()
                     .filter(product -> product.getTitle().toLowerCase().contains(keyword.toLowerCase()) ||
                                      product.getDescription().toLowerCase().contains(keyword.toLowerCase()) ||
-                                     product.getCategory().toLowerCase().contains(keyword.toLowerCase()))
+                                     product.getCategory().toLowerCase().contains(keyword.toLowerCase()) ||
+                                     (product.getSellerName() != null && product.getSellerName().toLowerCase().contains(keyword.toLowerCase())))
                     .collect(Collectors.toList());
             adapter.updateProducts(filteredProducts);
         } catch (Exception e) {

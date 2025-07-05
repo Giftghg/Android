@@ -1,5 +1,6 @@
 package com.example.myapplication.fragment;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,9 +19,12 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.myapplication.R;
 import com.example.myapplication.adapter.ProductAdapter;
 import com.example.myapplication.model.Product;
-import com.example.myapplication.util.DataGenerator;
+import com.example.myapplication.util.ApiClient;
 import com.example.myapplication.viewmodel.UserViewModel;
 
+import org.json.JSONObject;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,6 +32,7 @@ public class CategoryFragment extends Fragment {
     private ProductAdapter adapter;
     private RecyclerView recyclerView;
     private String selectedCategory = "全部";
+    private List<Product> allProducts = new ArrayList<>();
 
     private final String[] categories = {
         "全部", "数码产品", "服装鞋帽", "图书音像", "家居用品", "运动户外", "美妆护肤", "其他"
@@ -41,7 +46,7 @@ public class CategoryFragment extends Fragment {
         initViews(view);
         setupRecyclerView();
         setupCategoryButtons(view);
-        loadProductsByCategory(selectedCategory);
+        loadAllProducts();
         
         return view;
     }
@@ -52,12 +57,15 @@ public class CategoryFragment extends Fragment {
 
     private void setupRecyclerView() {
         UserViewModel userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
-        adapter = new ProductAdapter(new java.util.ArrayList<>(), userViewModel);
+        adapter = new ProductAdapter(new ArrayList<>(), userViewModel);
         recyclerView.setLayoutManager(new GridLayoutManager(getContext(), 2));
         recyclerView.setAdapter(adapter);
         
         adapter.setOnItemClickListener(product -> {
-            Toast.makeText(getContext(), "点击了: " + product.getTitle(), Toast.LENGTH_SHORT).show();
+            // 跳转到商品详情页面
+            Intent intent = new Intent(getActivity(), com.example.myapplication.ProductDetailActivity.class);
+            intent.putExtra("product_id", product.getId());
+            startActivity(intent);
         });
     }
 
@@ -103,12 +111,79 @@ public class CategoryFragment extends Fragment {
         }
     }
 
+    private void loadAllProducts() {
+        try {
+            allProducts.clear();
+            // 从API获取所有商品
+            ApiClient.getProducts(new ApiClient.ApiCallback<List<JSONObject>>() {
+                @Override
+                public void onSuccess(List<JSONObject> productsJson) {
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            try {
+                                for (JSONObject productJson : productsJson) {
+                                    Product product = parseProductFromJson(productJson);
+                                    allProducts.add(product);
+                                }
+                                // 加载完成后，按当前选中的分类显示
+                                loadProductsByCategory(selectedCategory);
+                            } catch (Exception e) {
+                                Toast.makeText(getContext(), "解析商品数据失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                android.util.Log.e("CategoryFragment", "解析商品数据失败", e);
+                            }
+                        });
+                    }
+                }
+
+                @Override
+                public void onError(String error) {
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            Toast.makeText(getContext(), "加载商品失败: " + error, Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }
+            });
+        } catch (Exception e) {
+            Toast.makeText(getContext(), "加载商品失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+        }
+    }
+
+    private Product parseProductFromJson(JSONObject productJson) throws Exception {
+        int id = productJson.getInt("id");
+        String title = productJson.getString("title");
+        String description = productJson.getString("description");
+        double price = productJson.getDouble("price");
+        String category = productJson.getString("category");
+        String condition = productJson.getString("condition");
+        int sellerId = productJson.getInt("seller_id");
+        String sellerName = productJson.getString("seller_name");
+        String status = productJson.optString("status", "");
+        String imageUrl = productJson.optString("image_url", "");
+        String createTime = productJson.getString("created_at");
+
+        Product product = new Product(title, description, (float) price, category, sellerId);
+        product.setId(id);
+        product.setCondition(condition);
+        product.setSellerName(sellerName);
+        product.setStatus(status);
+        product.setCreateTime(createTime);
+        product.setLocation("北京市朝阳区"); // 默认位置
+
+        // 处理图片
+        if (!imageUrl.isEmpty()) {
+            product.setImages("[" + imageUrl + "]");
+        }
+
+        return product;
+    }
+
     private void loadProductsByCategory(String category) {
-        List<Product> allProducts = new java.util.ArrayList<>();
         List<Product> filteredProducts;
         
         if ("全部".equals(category)) {
-            filteredProducts = allProducts;
+            filteredProducts = new ArrayList<>(allProducts);
         } else {
             filteredProducts = allProducts.stream()
                     .filter(product -> category.equals(product.getCategory()))
