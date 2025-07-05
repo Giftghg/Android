@@ -21,8 +21,11 @@ import com.example.myapplication.activity.SearchActivity;
 import com.example.myapplication.adapter.ProductAdapter;
 import com.example.myapplication.model.Product;
 import com.example.myapplication.util.DataGenerator;
+import com.example.myapplication.util.ApiClient;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.example.myapplication.viewmodel.UserViewModel;
+
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -88,13 +91,56 @@ public class HomeFragment extends Fragment {
     private void loadProducts() {
         try {
             allProducts.clear();
-            // 只加载用户发布的商品，不加载测试数据
-            loadUserProducts();
-            adapter.updateProducts(allProducts);
+            // 从API获取商品列表
+            loadProductsFromApi();
         } catch (Exception e) {
             Toast.makeText(getContext(), "加载商品失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
             e.printStackTrace();
         }
+    }
+
+    private void loadProductsFromApi() {
+        ApiClient.getProducts(new ApiClient.ApiCallback<List<JSONObject>>() {
+            @Override
+            public void onSuccess(List<JSONObject> products) {
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        try {
+                            allProducts.clear();
+                            for (JSONObject productJson : products) {
+                                Product product = new Product(
+                                    productJson.getString("title"),
+                                    productJson.getString("description"),
+                                    (float) productJson.getDouble("price"),
+                                    productJson.getString("category"),
+                                    productJson.getInt("seller_id")
+                                );
+                                product.setId(productJson.getInt("id"));
+                                product.setSellerName(productJson.getString("seller_name"));
+                                product.setCondition(productJson.getString("condition"));
+                                product.setCreateTime(productJson.getString("created_at"));
+                                if (productJson.has("image_url") && !productJson.isNull("image_url")) {
+                                    product.setImages(productJson.getString("image_url"));
+                                }
+                                allProducts.add(product);
+                            }
+                            adapter.updateProducts(allProducts);
+                        } catch (Exception e) {
+                            Toast.makeText(getContext(), "解析商品数据失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            }
+
+            @Override
+            public void onError(String error) {
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }
+        });
     }
 
     private void loadUserProducts() {

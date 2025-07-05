@@ -33,6 +33,13 @@ android {
     buildFeatures {
         viewBinding = true
     }
+    
+    // 允许HTTP流量（仅用于开发测试）
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
 }
 
 dependencies {

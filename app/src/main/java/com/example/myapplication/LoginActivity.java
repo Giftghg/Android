@@ -14,6 +14,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 import com.example.myapplication.model.User;
 import com.example.myapplication.viewmodel.UserViewModel;
+import com.example.myapplication.util.ApiClient;
+import com.example.myapplication.util.NetworkTest;
+
+import org.json.JSONObject;
 
 public class LoginActivity extends AppCompatActivity {
     private EditText etUsername, etPassword;
@@ -26,7 +30,7 @@ public class LoginActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-        if (getLoginUserId() != -1) {
+        if (getLoginUserId() != -1 && ApiClient.getToken(this) != null) {
             startMainActivity();
         }
         initViews();
@@ -54,6 +58,12 @@ public class LoginActivity extends AppCompatActivity {
             isLoginMode = !isLoginMode;
             updateUI();
         });
+
+        // 添加长按测试网络连接
+        btnLogin.setOnLongClickListener(v -> {
+            testNetworkConnection();
+            return true;
+        });
     }
 
     private void updateUI() {
@@ -74,19 +84,38 @@ public class LoginActivity extends AppCompatActivity {
             Toast.makeText(this, "请输入用户名和密码", Toast.LENGTH_SHORT).show();
             return;
         }
-        new Thread(() -> {
-            User user = userViewModel.getUserByUsername(username);
-            runOnUiThread(() -> {
-                if (user == null) {
-                    Toast.makeText(this, "用户不存在", Toast.LENGTH_SHORT).show();
-                } else if (!password.equals(user.getPassword())) {
-                    Toast.makeText(this, "密码错误", Toast.LENGTH_SHORT).show();
-                } else {
-                    saveLoginUserId(user.getId(), user.getUsername());
-                    startMainActivity();
-                }
-            });
-        }).start();
+
+        // 显示加载提示
+        Toast.makeText(this, "正在登录...", Toast.LENGTH_SHORT).show();
+
+        ApiClient.login(username, password, new ApiClient.ApiCallback<JSONObject>() {
+            @Override
+            public void onSuccess(JSONObject result) {
+                runOnUiThread(() -> {
+                    try {
+                        String token = result.getString("token");
+                        int userId = result.getInt("user_id");
+                        String username = result.getString("username");
+                        
+                        // 保存登录信息
+                        ApiClient.saveToken(LoginActivity.this, token);
+                        saveLoginUserId(userId, username);
+                        
+                        Toast.makeText(LoginActivity.this, "登录成功！", Toast.LENGTH_SHORT).show();
+                        startMainActivity();
+                    } catch (Exception e) {
+                        Toast.makeText(LoginActivity.this, "登录响应解析失败", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(LoginActivity.this, error, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
 
     private void register() {
@@ -101,39 +130,41 @@ public class LoginActivity extends AppCompatActivity {
             Toast.makeText(this, "密码长度至少6位", Toast.LENGTH_SHORT).show();
             return;
         }
-        new Thread(() -> {
-            User existUser = userViewModel.getUserByUsername(username);
-            runOnUiThread(() -> {
-                if (existUser != null) {
-                    Toast.makeText(this, "用户名已存在", Toast.LENGTH_SHORT).show();
-                } else {
-                    User newUser = new User();
-                    newUser.setUsername(username);
-                    newUser.setPassword(password);
-                    userViewModel.insert(newUser);
-                    // 延迟200ms后查找新用户并用ID更新用户名
-                    new Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                        new Thread(() -> {
-                            User loginUser = userViewModel.getUserByUsername(username);
-                            if (loginUser != null) {
-                                // 更新用户名为ID字符串
-                                loginUser.setUsername(String.valueOf(loginUser.getId()));
-                                userViewModel.update(loginUser);
-                            }
-                            runOnUiThread(() -> {
-                                if (loginUser != null) {
-                                    saveLoginUserId(loginUser.getId(), loginUser.getUsername());
-                                    Toast.makeText(this, "注册成功！", Toast.LENGTH_SHORT).show();
-                                    startMainActivity();
-                                } else {
-                                    Toast.makeText(this, "注册失败，请重试", Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                        }).start();
-                    }, 200);
-                }
-            });
-        }).start();
+
+        // 显示加载提示
+        Toast.makeText(this, "正在注册...", Toast.LENGTH_SHORT).show();
+
+        // 生成一个简单的邮箱（实际应用中应该让用户输入）
+        String email = username + "@example.com";
+
+        ApiClient.register(username, password, email, new ApiClient.ApiCallback<JSONObject>() {
+            @Override
+            public void onSuccess(JSONObject result) {
+                runOnUiThread(() -> {
+                    try {
+                        String token = result.getString("token");
+                        int userId = result.getInt("user_id");
+                        String username = result.getString("username");
+                        
+                        // 保存登录信息
+                        ApiClient.saveToken(LoginActivity.this, token);
+                        saveLoginUserId(userId, username);
+                        
+                        Toast.makeText(LoginActivity.this, "注册成功！", Toast.LENGTH_SHORT).show();
+                        startMainActivity();
+                    } catch (Exception e) {
+                        Toast.makeText(LoginActivity.this, "注册响应解析失败", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(LoginActivity.this, error, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
 
     private void saveLoginUserId(int userId, String username) {
@@ -153,5 +184,25 @@ public class LoginActivity extends AppCompatActivity {
         Intent intent = new Intent(this, MainActivity.class);
         startActivity(intent);
         finish();
+    }
+
+    private void testNetworkConnection() {
+        Toast.makeText(this, "正在测试网络连接...", Toast.LENGTH_SHORT).show();
+        
+        NetworkTest.testConnection(this, new NetworkTest.NetworkTestCallback() {
+            @Override
+            public void onSuccess(String message) {
+                runOnUiThread(() -> {
+                    Toast.makeText(LoginActivity.this, message, Toast.LENGTH_LONG).show();
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(LoginActivity.this, error, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 } 

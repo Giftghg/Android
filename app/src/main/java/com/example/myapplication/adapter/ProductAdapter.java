@@ -93,17 +93,6 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
                 Product product = products.get(position);
                 Intent intent = new Intent(v.getContext(), ProductDetailActivity.class);
                 intent.putExtra("product_id", product.getId());
-                intent.putExtra("seller_id", product.getSellerId());
-                intent.putExtra("status", product.getStatus());
-                intent.putExtra("title", product.getTitle());
-                intent.putExtra("description", product.getDescription());
-                intent.putExtra("price", product.getPrice());
-                intent.putExtra("category", product.getCategory());
-                intent.putExtra("condition", product.getCondition() != null ? product.getCondition() : "9成新");
-                intent.putExtra("location", product.getLocation() != null ? product.getLocation() : "北京市朝阳区");
-                intent.putExtra("seller", product.getSellerName() != null ? product.getSellerName() : "卖家");
-                intent.putExtra("original_price", product.getOriginalPrice());
-                intent.putExtra("images", product.getImages());
                 v.getContext().startActivity(intent);
             });
         }

@@ -24,11 +24,14 @@ import java.util.List;
 
 import com.example.myapplication.model.Product;
 import com.example.myapplication.viewmodel.ProductViewModel;
+import com.example.myapplication.util.ApiClient;
 import android.content.SharedPreferences;
 import com.example.myapplication.viewmodel.UserViewModel;
 import com.example.myapplication.model.User;
 import android.os.Handler;
 import android.os.Looper;
+
+import org.json.JSONObject;
 
 public class ProductDetailActivity extends AppCompatActivity {
     private RecyclerView rvProductImages;
@@ -84,67 +87,79 @@ public class ProductDetailActivity extends AppCompatActivity {
     }
 
     private void loadProductData() {
-        // 从Intent获取商品数据
+        // 从Intent获取商品ID
         Intent intent = getIntent();
         if (intent != null) {
             productId = intent.getIntExtra("product_id", -1);
-            sellerId = intent.getIntExtra("seller_id", -1);
-            status = intent.getStringExtra("status");
-            String title = intent.getStringExtra("title");
-            String description = intent.getStringExtra("description");
-            double price = intent.getDoubleExtra("price", 0.0);
-            String category = intent.getStringExtra("category");
-            String condition = intent.getStringExtra("condition");
-            String location = intent.getStringExtra("location");
-            String seller = intent.getStringExtra("seller");
-            String originalPrice = intent.getStringExtra("original_price");
-            String images = intent.getStringExtra("images");
-
-            tvTitle.setText(title);
-            tvDescription.setText(description);
-            tvPrice.setText("¥" + price);
-            tvCategory.setText("分类：" + category);
-            tvCondition.setText("新旧程度：" + condition);
-            tvLocation.setText("交易地点：" + location);
-            tvSeller.setText("卖家：" + sellerId);
-            android.util.Log.d("ProductDebug", "商品详情页sellerId=" + sellerId);
-            // 异步查用户名
-            new Thread(() -> {
-                User user = userViewModel.getUserByIdSync(sellerId);
-                String name = (user != null) ? user.getUsername() : "未知用户";
-                android.util.Log.d("ProductDebug", "通过sellerId查到的用户名=" + name);
-                new Handler(Looper.getMainLooper()).post(() -> tvSeller.setText("卖家：" + name));
-            }).start();
-
-            if (originalPrice != null && !originalPrice.isEmpty()) {
-                tvOriginalPrice.setText("原价：¥" + originalPrice);
-                tvOriginalPrice.setVisibility(android.view.View.VISIBLE);
+            if (productId != -1) {
+                // 从API获取商品详情
+                loadProductFromApi(productId);
             } else {
-                tvOriginalPrice.setVisibility(android.view.View.GONE);
-            }
-
-            imageUris.clear();
-            if (images != null && !images.isEmpty()) {
-                try {
-                    JSONArray arr = new JSONArray(images);
-                    for (int i = 0; i < arr.length(); i++) {
-                        imageUris.add(Uri.parse(arr.getString(i)));
-                    }
-                } catch (JSONException e) {
-                    // ignore
-                }
-            }
-            imagesAdapter.notifyDataSetChanged();
-
-            // 控制购买按钮显示逻辑
-            if (buyerId == sellerId || !"在售".equals(status)) {
-                btnBuy.setEnabled(false);
-                btnBuy.setText("不可购买");
-            } else {
-                btnBuy.setEnabled(true);
-                btnBuy.setText("购买");
+                Toast.makeText(this, "商品ID无效", Toast.LENGTH_SHORT).show();
+                finish();
             }
         }
+    }
+
+    private void loadProductFromApi(int productId) {
+        ApiClient.getProductDetail(productId, new ApiClient.ApiCallback<JSONObject>() {
+            @Override
+            public void onSuccess(JSONObject productJson) {
+                runOnUiThread(() -> {
+                    try {
+                        // 解析商品数据
+                        String title = productJson.getString("title");
+                        String description = productJson.getString("description");
+                        double price = productJson.getDouble("price");
+                        String category = productJson.getString("category");
+                        String condition = productJson.getString("condition");
+                        sellerId = productJson.getInt("seller_id");
+                        String sellerName = productJson.getString("seller_name");
+                        String status = productJson.getString("status");
+                        String imageUrl = productJson.optString("image_url", "");
+
+                        // 更新UI
+                        tvTitle.setText(title);
+                        tvDescription.setText(description);
+                        tvPrice.setText("¥" + price);
+                        tvCategory.setText("分类：" + category);
+                        tvCondition.setText("新旧程度：" + condition);
+                        tvSeller.setText("卖家：" + sellerName);
+
+                        // 处理图片
+                        imageUris.clear();
+                        if (!imageUrl.isEmpty()) {
+                            try {
+                                imageUris.add(Uri.parse(imageUrl));
+                            } catch (Exception e) {
+                                // 忽略无效的图片URL
+                            }
+                        }
+                        imagesAdapter.notifyDataSetChanged();
+
+                        // 控制购买按钮显示逻辑
+                        if (buyerId == sellerId || !"available".equals(status)) {
+                            btnBuy.setEnabled(false);
+                            btnBuy.setText("不可购买");
+                        } else {
+                            btnBuy.setEnabled(true);
+                            btnBuy.setText("购买");
+                        }
+
+                    } catch (Exception e) {
+                        Toast.makeText(ProductDetailActivity.this, "解析商品数据失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ProductDetailActivity.this, error, Toast.LENGTH_SHORT).show();
+                    finish();
+                });
+            }
+        });
     }
 
     private void setupListeners() {

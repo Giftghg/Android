@@ -16,6 +16,7 @@ import androidx.fragment.app.Fragment;
 
 import com.example.myapplication.R;
 import com.example.myapplication.model.Product;
+import com.example.myapplication.util.ApiClient;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.ArrayList;
@@ -27,6 +28,8 @@ import android.net.Uri;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import android.widget.ImageView;
+
+import org.json.JSONObject;
 
 public class PublishFragment extends Fragment {
     private TextInputEditText titleInput;
@@ -166,69 +169,55 @@ public class PublishFragment extends Fragment {
         String location = locationInput.getText().toString().trim();
         String category = categorySpinner.getSelectedItem().toString();
         String condition = conditionSpinner.getSelectedItem().toString();
-        // 获取当前用户
-        SharedPreferences prefs = getActivity().getSharedPreferences("app_prefs", getActivity().MODE_PRIVATE);
-        int userId = prefs.getInt("login_user_id", -1);
-        String sellerName = prefs.getString("username", "用户");
-        android.util.Log.d("UserDebug", "当前登录用户id=" + userId + ", 用户名=" + sellerName);
-        // 创建商品对象
-        android.util.Log.d("ProductDebug", "发布商品sellerId=" + userId);
-        Product product = new Product(title, description, price, category, userId);
-        product.setLocation(location);
-        product.setSellerName(sellerName);
-        product.setCondition(condition);
-        // 保存图片URI为JSON字符串
-        if (!imageUris.isEmpty()) {
-            List<String> uriStrings = new ArrayList<>();
-            for (Uri uri : imageUris) {
-                uriStrings.add(uri.toString());
-            }
-            product.setImages(new org.json.JSONArray(uriStrings).toString());
+        
+        // 获取当前用户token
+        String token = ApiClient.getToken(getContext());
+        if (token == null) {
+            Toast.makeText(getContext(), "请先登录", Toast.LENGTH_SHORT).show();
+            return;
         }
-        // 保存商品到SharedPreferences（简化版本，实际应该保存到数据库）
-        saveProduct(product);
-        Toast.makeText(getContext(), "商品发布成功！", Toast.LENGTH_SHORT).show();
-        clearInputs();
 
-        // 新增：发布后直接跳转到详情页
-        Intent intent = new Intent(getActivity(), com.example.myapplication.ProductDetailActivity.class);
-        intent.putExtra("product_id", product.getId());
-        intent.putExtra("seller_id", product.getSellerId());
-        intent.putExtra("status", product.getStatus());
-        intent.putExtra("title", product.getTitle());
-        intent.putExtra("description", product.getDescription());
-        intent.putExtra("price", product.getPrice());
-        intent.putExtra("category", product.getCategory());
-        intent.putExtra("condition", product.getCondition());
-        intent.putExtra("location", product.getLocation());
-        intent.putExtra("seller", product.getSellerName());
-        intent.putExtra("original_price", product.getOriginalPrice());
-        intent.putExtra("images", product.getImages());
-        startActivity(intent);
-    }
+        // 显示发布中提示
+        Toast.makeText(getContext(), "正在发布商品...", Toast.LENGTH_SHORT).show();
 
-    private void saveProduct(Product product) {
-        SharedPreferences prefs = getActivity().getSharedPreferences("products", getActivity().MODE_PRIVATE);
-        SharedPreferences.Editor editor = prefs.edit();
-        
-        // 获取已保存的商品数量
-        int productCount = prefs.getInt("product_count", 0);
-        productCount++;
-        
-        // 保存商品信息
-        editor.putString("product_" + productCount + "_title", product.getTitle());
-        editor.putString("product_" + productCount + "_description", product.getDescription());
-        editor.putFloat("product_" + productCount + "_price", (float) product.getPrice());
-        editor.putString("product_" + productCount + "_category", product.getCategory());
-        editor.putString("product_" + productCount + "_location", product.getLocation());
-        editor.putString("product_" + productCount + "_seller", product.getSellerName());
-        editor.putString("product_" + productCount + "_condition", product.getCondition());
-        editor.putString("product_" + productCount + "_images", product.getImages());
-        editor.putLong("product_" + productCount + "_time", System.currentTimeMillis());
-        
-        // 更新商品数量
-        editor.putInt("product_count", productCount);
-        editor.apply();
+        // 处理图片URL（简化处理，实际应该上传到服务器）
+        String imageUrl = null;
+        if (!imageUris.isEmpty()) {
+            imageUrl = imageUris.get(0).toString(); // 只取第一张图片
+        }
+
+        // 通过API发布商品
+        ApiClient.createProduct(title, description, price, category, condition, imageUrl, token, 
+            new ApiClient.ApiCallback<JSONObject>() {
+                @Override
+                public void onSuccess(JSONObject result) {
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            try {
+                                int productId = result.getInt("product_id");
+                                Toast.makeText(getContext(), "商品发布成功！", Toast.LENGTH_SHORT).show();
+                                clearInputs();
+
+                                // 发布成功后跳转到商品详情页
+                                Intent intent = new Intent(getActivity(), com.example.myapplication.ProductDetailActivity.class);
+                                intent.putExtra("product_id", productId);
+                                startActivity(intent);
+                            } catch (Exception e) {
+                                Toast.makeText(getContext(), "发布成功但解析响应失败", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                }
+
+                @Override
+                public void onError(String error) {
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }
+            });
     }
 
     private void clearInputs() {
