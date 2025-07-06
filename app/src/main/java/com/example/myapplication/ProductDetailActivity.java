@@ -3,6 +3,7 @@ package com.example.myapplication;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.MenuItem;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -25,6 +26,7 @@ import java.util.List;
 import com.example.myapplication.model.Product;
 import com.example.myapplication.viewmodel.ProductViewModel;
 import com.example.myapplication.util.ApiClient;
+import com.example.myapplication.util.ImageLoader;
 import android.content.SharedPreferences;
 import com.example.myapplication.viewmodel.UserViewModel;
 import com.example.myapplication.model.User;
@@ -130,10 +132,19 @@ public class ProductDetailActivity extends AppCompatActivity {
                         imageUris.clear();
                         if (!imageUrl.isEmpty()) {
                             try {
-                                imageUris.add(Uri.parse(imageUrl));
+                                Uri imageUri = Uri.parse(imageUrl);
+                                Log.d("ProductDetail", "解析图片URL: " + imageUrl);
+                                Log.d("ProductDetail", "解析后的URI: " + imageUri);
+                                
+                                // 直接添加图片URI，让ImageLoader处理加载
+                                imageUris.add(imageUri);
+                                Log.d("ProductDetail", "添加图片URI到列表");
                             } catch (Exception e) {
+                                Log.e("ProductDetail", "解析图片URL失败: " + imageUrl, e);
                                 // 忽略无效的图片URL
                             }
+                        } else {
+                            Log.d("ProductDetail", "图片URL为空");
                         }
                         imagesAdapter.notifyDataSetChanged();
 
@@ -210,7 +221,20 @@ public class ProductDetailActivity extends AppCompatActivity {
         }
         @Override
         public void onBindViewHolder(@NonNull ImageViewHolder holder, int position) {
-            holder.imageView.setImageURI(imageUris.get(position));
+            try {
+                Uri imageUri = imageUris.get(position);
+                if (imageUri != null) {
+                    // 使用改进的图片加载方法
+                    ImageLoader.loadImage(holder.imageView.getContext(), holder.imageView, imageUri, R.drawable.ic_image_placeholder);
+                } else {
+                    // 设置默认图片
+                    holder.imageView.setImageResource(R.drawable.ic_image_placeholder);
+                }
+            } catch (Exception e) {
+                Log.e("ProductImagesAdapter", "加载图片失败", e);
+                // 设置默认图片
+                holder.imageView.setImageResource(R.drawable.ic_image_placeholder);
+            }
         }
         @Override
         public int getItemCount() { return imageUris.size(); }

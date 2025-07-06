@@ -17,6 +17,8 @@ import androidx.fragment.app.Fragment;
 import com.example.myapplication.R;
 import com.example.myapplication.model.Product;
 import com.example.myapplication.util.ApiClient;
+import com.example.myapplication.util.ImageLoader;
+import com.example.myapplication.util.UploadUtil;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.ArrayList;
@@ -180,14 +182,74 @@ public class PublishFragment extends Fragment {
         // 显示发布中提示
         Toast.makeText(getContext(), "正在发布商品...", Toast.LENGTH_SHORT).show();
 
-        // 处理图片URL（简化处理，实际应该上传到服务器）
-        String imageUrl = null;
+        // 如果有图片，先上传图片
         if (!imageUris.isEmpty()) {
-            imageUrl = imageUris.get(0).toString(); // 只取第一张图片
+            uploadImageAndPublish(title, description, price, category, condition, token);
+        } else {
+            // 没有图片，直接发布商品
+            publishProductWithoutImage(title, description, price, category, condition, token);
         }
+    }
 
-        // 通过API发布商品
+    private void uploadImageAndPublish(String title, String description, double price, 
+                                     String category, String condition, String token) {
+        // 上传第一张图片
+        UploadUtil.uploadImage(getContext(), imageUris.get(0), new UploadUtil.UploadCallback() {
+            @Override
+            public void onSuccess(String imageUrl) {
+                // 图片上传成功，发布商品
+                publishProductWithImage(title, description, price, category, condition, imageUrl, token);
+            }
+
+            @Override
+            public void onError(String error) {
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        Toast.makeText(getContext(), "图片上传失败: " + error, Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }
+        });
+    }
+
+    private void publishProductWithImage(String title, String description, double price, 
+                                       String category, String condition, String imageUrl, String token) {
         ApiClient.createProduct(title, description, price, category, condition, imageUrl, token, 
+            new ApiClient.ApiCallback<JSONObject>() {
+                @Override
+                public void onSuccess(JSONObject result) {
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            try {
+                                int productId = result.getInt("product_id");
+                                Toast.makeText(getContext(), "商品发布成功！", Toast.LENGTH_SHORT).show();
+                                clearInputs();
+
+                                // 发布成功后跳转到商品详情页
+                                Intent intent = new Intent(getActivity(), com.example.myapplication.ProductDetailActivity.class);
+                                intent.putExtra("product_id", productId);
+                                startActivity(intent);
+                            } catch (Exception e) {
+                                Toast.makeText(getContext(), "发布成功但解析响应失败", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                }
+
+                @Override
+                public void onError(String error) {
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }
+            });
+    }
+
+    private void publishProductWithoutImage(String title, String description, double price, 
+                                          String category, String condition, String token) {
+        ApiClient.createProduct(title, description, price, category, condition, null, token, 
             new ApiClient.ApiCallback<JSONObject>() {
                 @Override
                 public void onSuccess(JSONObject result) {
@@ -246,7 +308,19 @@ public class PublishFragment extends Fragment {
         }
         @Override
         public void onBindViewHolder(@NonNull ImageViewHolder holder, int position) {
-            holder.imageView.setImageURI(imageUris.get(position));
+            try {
+                Uri imageUri = imageUris.get(position);
+                if (imageUri != null) {
+                    // 使用改进的图片加载方法
+                    ImageLoader.loadImage(holder.imageView.getContext(), holder.imageView, imageUri, R.drawable.ic_image_placeholder);
+                } else {
+                    // 设置默认图片
+                    holder.imageView.setImageResource(R.drawable.ic_image_placeholder);
+                }
+            } catch (Exception e) {
+                // 设置默认图片
+                holder.imageView.setImageResource(R.drawable.ic_image_placeholder);
+            }
         }
         @Override
         public int getItemCount() { return imageUris.size(); }

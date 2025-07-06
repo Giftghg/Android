@@ -23,7 +23,7 @@ import java.util.concurrent.Executors;
 
 public class ApiClient {
     private static final String TAG = "ApiClient";
-    private static final String BASE_URL = "http://10.34.68.221:5000/api"; // 使用您的电脑IP
+    private static final String BASE_URL = "http://10.34.68.221:5000/api"; // 真机访问电脑（当前局域网IP）
     private static final ExecutorService executor = Executors.newCachedThreadPool();
 
     public interface ApiCallback<T> {

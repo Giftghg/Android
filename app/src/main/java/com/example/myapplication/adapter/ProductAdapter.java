@@ -15,6 +15,8 @@ import com.example.myapplication.R;
 import com.example.myapplication.model.Product;
 import com.example.myapplication.viewmodel.UserViewModel;
 import com.example.myapplication.model.User;
+import com.example.myapplication.util.ImageLoader;
+import com.example.myapplication.util.DebugUtil;
 import android.os.Handler;
 import android.os.Looper;
 import java.util.HashMap;
@@ -88,12 +90,6 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
                 if (position != RecyclerView.NO_POSITION && listener != null) {
                     listener.onItemClick(products.get(position));
                 }
-                
-                // 跳转到商品详情页面
-                Product product = products.get(position);
-                Intent intent = new Intent(v.getContext(), ProductDetailActivity.class);
-                intent.putExtra("product_id", product.getId());
-                v.getContext().startActivity(intent);
             });
         }
 
@@ -102,26 +98,39 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ProductV
             tvPrice.setText("¥" + product.getPrice());
             tvLocation.setText(product.getLocation() != null ? product.getLocation() : "北京市朝阳区");
             tvSeller.setText("卖家：" + (product.getSellerName() != null ? product.getSellerName() : "用户"));
+            
             // 显示商品图片（取images字段的第一张）
             String images = product.getImages();
+            android.util.Log.d("ProductAdapter", "商品: " + product.getTitle() + ", images字段: " + images);
+            
             if (images != null && !images.isEmpty()) {
                 try {
                     JSONArray arr = new JSONArray(images);
+                    android.util.Log.d("ProductAdapter", "解析JSON数组成功，长度: " + arr.length());
+                    
                     if (arr.length() > 0) {
                         String uriStr = arr.getString(0);
+                        android.util.Log.d("ProductAdapter", "图片URL: " + uriStr);
+                        
                         if (uriStr != null && !uriStr.isEmpty()) {
-                            ivProduct.setImageURI(android.net.Uri.parse(uriStr));
+                            // 使用改进的图片加载方法
+                            android.util.Log.d("ProductAdapter", "开始加载图片: " + uriStr);
+                            ImageLoader.loadImage(itemView.getContext(), ivProduct, uriStr, R.drawable.ic_image_placeholder);
                         } else {
-                            ivProduct.setImageResource(R.drawable.ic_launcher_foreground);
+                            android.util.Log.w("ProductAdapter", "图片URL为空");
+                            ivProduct.setImageResource(R.drawable.ic_image_placeholder);
                         }
                     } else {
-                        ivProduct.setImageResource(R.drawable.ic_launcher_foreground);
+                        android.util.Log.w("ProductAdapter", "JSON数组为空");
+                        ivProduct.setImageResource(R.drawable.ic_image_placeholder);
                     }
                 } catch (Exception e) {
-                    ivProduct.setImageResource(R.drawable.ic_launcher_foreground);
+                    android.util.Log.e("ProductAdapter", "解析图片数据失败", e);
+                    ivProduct.setImageResource(R.drawable.ic_image_placeholder);
                 }
             } else {
-                ivProduct.setImageResource(R.drawable.ic_launcher_foreground);
+                android.util.Log.w("ProductAdapter", "images字段为空");
+                ivProduct.setImageResource(R.drawable.ic_image_placeholder);
             }
         }
 

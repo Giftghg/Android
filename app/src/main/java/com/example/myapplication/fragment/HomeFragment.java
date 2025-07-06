@@ -22,6 +22,7 @@ import com.example.myapplication.adapter.ProductAdapter;
 import com.example.myapplication.model.Product;
 import com.example.myapplication.util.DataGenerator;
 import com.example.myapplication.util.ApiClient;
+import com.example.myapplication.util.DebugUtil;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.example.myapplication.viewmodel.UserViewModel;
 
@@ -201,10 +202,15 @@ public class HomeFragment extends Fragment {
                                 product.setCreateTime(productJson.getString("created_at"));
                                 product.setLocation("北京市朝阳区"); // 默认位置
                                 
+                                // 处理图片URL
+                                String imageUrl = "";
                                 if (productJson.has("image_url") && !productJson.isNull("image_url")) {
-                                    String imageUrl = productJson.getString("image_url");
+                                    imageUrl = productJson.getString("image_url");
                                     if (!imageUrl.isEmpty()) {
                                         product.setImages("[" + imageUrl + "]");
+                                        // 调试：测试图片URL
+                                        DebugUtil.testImageUrl(getContext(), imageUrl);
+                                        DebugUtil.logProductImageInfo(product.getTitle(), imageUrl, product.getImages());
                                     }
                                 }
                                 allProducts.add(product);

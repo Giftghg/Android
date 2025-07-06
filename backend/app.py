@@ -1,15 +1,26 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 import jwt
 import datetime
 import os
+import uuid
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///secondhand.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# 图片上传配置
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# 确保上传目录存在
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
 db = SQLAlchemy(app)
 CORS(app)
@@ -413,6 +424,53 @@ def get_conditions():
         '五成新及以下'
     ]
     return jsonify({'conditions': conditions}), 200
+
+def allowed_file(filename):
+    """检查文件扩展名是否允许"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/api/upload_image', methods=['POST'])
+def upload_image():
+    """上传图片"""
+    try:
+        # 检查是否有文件
+        if 'image' not in request.files:
+            return jsonify({'error': '没有选择文件'}), 400
+        
+        file = request.files['image']
+        
+        # 检查文件名是否为空
+        if file.filename == '':
+            return jsonify({'error': '没有选择文件'}), 400
+        
+        # 检查文件类型
+        if file and allowed_file(file.filename):
+            # 生成唯一文件名
+            filename = str(uuid.uuid4()) + '.' + file.filename.rsplit('.', 1)[1].lower()
+            
+            # 保存文件
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            
+            # 返回图片URL
+            image_url = f"http://10.0.2.2:5000/uploads/{filename}"
+            
+            return jsonify({
+                'message': '图片上传成功',
+                'image_url': image_url,
+                'filename': filename
+            }), 200
+        else:
+            return jsonify({'error': '不支持的文件类型'}), 400
+            
+    except Exception as e:
+        return jsonify({'error': f'图片上传失败: {str(e)}'}), 500
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    """提供上传的图片文件"""
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000) 

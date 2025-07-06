@@ -74,7 +74,10 @@ public class ProfileFragment extends Fragment {
         rvMyProducts.setAdapter(adapter);
         
         adapter.setOnItemClickListener(product -> {
-            Toast.makeText(getContext(), "点击了: " + product.getTitle(), Toast.LENGTH_SHORT).show();
+            // 跳转到商品详情页面
+            Intent intent = new Intent(getActivity(), com.example.myapplication.ProductDetailActivity.class);
+            intent.putExtra("product_id", product.getId());
+            startActivity(intent);
         });
     }
 
@@ -98,16 +101,14 @@ public class ProfileFragment extends Fragment {
             tvUsername.setText("未登录");
             return;
         }
-        new Thread(() -> {
-            User user = userViewModel.getUserByIdSync(loginUserId);
-            getActivity().runOnUiThread(() -> {
-                if (user != null) {
-                    tvUsername.setText(user.getUsername());
-                } else {
-                    tvUsername.setText("未知用户");
-                }
-            });
-        }).start();
+        
+        // 直接从SharedPreferences获取用户名
+        SharedPreferences prefs = getActivity().getSharedPreferences("app_prefs", getActivity().MODE_PRIVATE);
+        String username = prefs.getString("username", "未知用户");
+        tvUsername.setText(username);
+        
+        // 调试：打印用户信息
+        android.util.Log.d("ProfileFragment", "用户ID: " + loginUserId + ", 用户名: " + username);
     }
 
     private int getLoginUserId() {

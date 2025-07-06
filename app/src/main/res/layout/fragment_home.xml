@@ -29,7 +29,6 @@
                     android:layout_height="20dp"
                     android:src="@drawable/ic_search"
                     android:tint="@android:color/darker_gray" />
-
                 <TextView
                     android:id="@+id/search_hint"
                     android:layout_width="0dp"
